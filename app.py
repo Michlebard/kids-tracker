@@ -2,10 +2,14 @@ import gspread
 import uuid
 from datetime import datetime
 import streamlit as st
+import json  # Подключаем инструмент для чтения из сейфа
 
 # --- НАСТРОЙКА СВЯЗИ ---
-gc = gspread.service_account(filename='credentials.json')
-# Твоя прямая ссылка уже вшита
+# Читаем наш секретный ключ из сейфа Streamlit и превращаем его в словарь
+credentials_dict = json.loads(st.secrets["google_key"])
+gc = gspread.service_account_from_dict(credentials_dict)
+
+# Твоя прямая ссылка
 sh = gc.open_by_url('https://docs.google.com/spreadsheets/d/1D_HdduxF55bPyvisoz9GTpeYssozQ1WnBe2nsN3KhaQ/edit')
 
 # --- ФУНКЦИИ БЭКЕНДА ---
