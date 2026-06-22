@@ -107,22 +107,37 @@ def get_reward_and_color(balance):
 # --- ОБНОВЛЕННАЯ КАРТОЧКА РЕБЕНКА ---
 # Добавили параметр theme_color
 # --- ОБНОВЛЕННАЯ КАРТОЧКА РЕБЕНКА ---
+# --- ОБНОВЛЕННАЯ КАРТОЧКА РЕБЕНКА С УМНЫМ МАСШТАБОМ ---
 def draw_child_card(name, points, money, theme_color):
     reward, bar_color = get_reward_and_color(points)
     
-    # 1. Имя сверху персональным цветом
+    # Имя сверху персональным цветом
     st.markdown(f"<h3 style='text-align: center; color: {theme_color}; margin-bottom: 0;'>{name}</h3>", unsafe_allow_html=True)
     
-    # 2. Колонки: Слева - прогресс, Справа - копилка
+    # ДИНАМИЧЕСКИЙ МАСШТАБ: Если админ, делаем всё компактным (примерно на 40% меньше)
+    if is_admin:
+        bar_height = "110px"
+        bar_width = "42px"
+        font_size = "18px"
+        pig_size = "130"
+        pig_box_height = "130px"
+    else:
+        bar_height = "160px"
+        bar_width = "60px"
+        font_size = "24px"
+        pig_size = "210"
+        pig_box_height = "220px"
+    
+    # Колонки: Слева - прогресс, Справа - копилка
     col_bar, col_pig = st.columns(2)
     
     with col_bar:
         height_pct = max(0, min(points, 100)) 
         html_bar = f"""
         <div style="display: flex; justify-content: center; margin-top: 10px;">
-            <div style="position: relative; height: 160px; width: 60px; border: 3px solid black; background-color: #f0f0f0; border-radius: 8px; overflow: hidden;">
+            <div style="position: relative; height: {bar_height}; width: {bar_width}; border: 3px solid black; background-color: #f0f0f0; border-radius: 8px; overflow: hidden;">
                 <div style="position: absolute; bottom: 0; width: 100%; height: {height_pct}%; background-color: {bar_color}; transition: height 0.5s;"></div>
-                <div style="position: absolute; width: 100%; top: 50%; transform: translateY(-50%); text-align: center; font-family: sans-serif; font-size: 24px; font-weight: bold; color: black; text-shadow: 1px 1px 0px white, -1px -1px 0px white, 1px -1px 0px white, -1px 1px 0px white;">
+                <div style="position: absolute; width: 100%; top: 50%; transform: translateY(-50%); text-align: center; font-family: sans-serif; font-size: {font_size}; font-weight: bold; color: black; text-shadow: 1px 1px 0px white, -1px -1px 0px white, 1px -1px 0px white, -1px 1px 0px white;">
                     {points}
                 </div>
             </div>
@@ -132,45 +147,43 @@ def draw_child_card(name, points, money, theme_color):
         
     with col_pig:
         html_piggy = f"""
-        <div style="display: flex; justify-content: center; align-items: center; height: 220px;">
-            <svg width="210" height="210" viewBox="0 0 120 100">
-                <circle cx="60" cy="18" r="10" fill="#FFD700" stroke="#DAA520" stroke-width="2"/>
-                <text x="60" y="21.5" font-family="sans-serif" font-size="10" font-weight="bold" fill="#DAA520" text-anchor="middle">₪</text>
-                <rect x="35" y="70" width="12" height="15" rx="3" fill="#fbcfe8" stroke="#db2777" stroke-width="2"/>
-                <rect x="75" y="70" width="12" height="15" rx="3" fill="#fbcfe8" stroke="#db2777" stroke-width="2"/>
-                <polygon points="35,40 45,20 55,35" fill="#fbcfe8" stroke="#db2777" stroke-width="2" stroke-linejoin="round"/>
-                <ellipse cx="60" cy="55" rx="45" ry="28" fill="#fbcfe8" stroke="#db2777" stroke-width="2"/>
-                <ellipse cx="105" cy="55" rx="8" ry="14" fill="#f472b6" stroke="#db2777" stroke-width="2"/>
-                <circle cx="85" cy="45" r="3.5" fill="#db2777"/>
-                <line x1="45" y1="35" x2="75" y2="35" stroke="#db2777" stroke-width="3" stroke-linecap="round"/>
-                <text x="60" y="63" font-family="sans-serif" font-size="22" font-weight="bold" fill="#831843" text-anchor="middle">{money} ₪</text>
-            </svg>
-        </div>
-        """
+<div style="display: flex; justify-content: center; align-items: center; height: {pig_box_height};">
+    <svg width="{pig_size}" height="{pig_size}" viewBox="0 0 120 100">
+        <circle cx="60" cy="18" r="10" fill="#FFD700" stroke="#DAA520" stroke-width="2"/>
+        <text x="60" y="21.5" font-family="sans-serif" font-size="10" font-weight="bold" fill="#DAA520" text-anchor="middle">₪</text>
+        <rect x="35" y="70" width="12" height="15" rx="3" fill="#fbcfe8" stroke="#db2777" stroke-width="2"/>
+        <rect x="75" y="70" width="12" height="15" rx="3" fill="#fbcfe8" stroke="#db2777" stroke-width="2"/>
+        <polygon points="35,40 45,20 55,35" fill="#fbcfe8" stroke="#db2777" stroke-width="2" stroke-linejoin="round"/>
+        <ellipse cx="60" cy="55" rx="45" ry="28" fill="#fbcfe8" stroke="#db2777" stroke-width="2"/>
+        <ellipse cx="105" cy="55" rx="8" ry="14" fill="#f472b6" stroke="#db2777" stroke-width="2"/>
+        <circle cx="85" cy="45" r="3.5" fill="#db2777"/>
+        <line x1="45" y1="35" x2="75" y2="35" stroke="#db2777" stroke-width="3" stroke-linecap="round"/>
+        <text x="60" y="63" font-family="sans-serif" font-size="22" font-weight="bold" fill="#831843" text-anchor="middle">{money} ₪</text>
+    </svg>
+</div>
+"""
         st.markdown(html_piggy, unsafe_allow_html=True)
 
     # 3. Пульт управления (только для админа)
     if is_admin:
-        # ИСПРАВЛЕННЫЙ CSS: Ищем div от Streamlit, а не стандартный тег form
+        # ЖЕСТКО СЖИМАЕМ ШИРИНУ БОКСА ДО 260px И ЦЕНТРИРУЕМ
         st.markdown(f"""
             <style>
             div[data-testid="stForm"]:has(#{name}_form_marker) {{
                 border: 2px solid {theme_color} !important;
                 background-color: {theme_color}15 !important;
                 border-radius: 14px !important;
+                max-width: 260px !important;
+                margin: 10px auto 0 auto !important;
             }}
             </style>
         """, unsafe_allow_html=True)
         
-        # Вся панель — это одна стильная форма
         with st.form(key=f"{name}_admin_panel", clear_on_submit=True):
-            # Невидимая метка, по которой CSS узнает именно эту форму
             st.markdown(f'<div id="{name}_form_marker" style="display:none;"></div>', unsafe_allow_html=True)
             
             # Блок баллов (Сетка 2x2)
             st.caption("Баллы:")
-            
-            # Первый этаж (Плюсы)
             r1_col1, r1_col2 = st.columns(2)
             if r1_col1.form_submit_button("+5", use_container_width=True):
                 add_transaction(name, 5, 'Начисление', points)
@@ -179,13 +192,12 @@ def draw_child_card(name, points, money, theme_color):
                 add_transaction(name, 1, 'Начисление', points)
                 st.rerun()
                 
-            # Второй этаж (Минусы)
             r2_col1, r2_col2 = st.columns(2)
-            if r2_col1.form_submit_button("-5", use_container_width=True):
-                add_transaction(name, -5, 'Списание', points)
-                st.rerun()
-            if r2_col2.form_submit_button("-1", use_container_width=True):
+            if r2_col1.form_submit_button("-1", use_container_width=True):
                 add_transaction(name, -1, 'Списание', points)
+                st.rerun()
+            if r2_col2.form_submit_button("-5", use_container_width=True):
+                add_transaction(name, -5, 'Списание', points)
                 st.rerun()
                 
             # Блок денег
@@ -193,8 +205,8 @@ def draw_child_card(name, points, money, theme_color):
             amt = st.number_input("Сумма:", min_value=1, step=1, label_visibility="collapsed")
             
             c_plus, c_minus = st.columns(2)
-            add_btn = c_plus.form_submit_button("➕ Плюс")
-            sub_btn = c_minus.form_submit_button("➖ Минус")
+            add_btn = c_plus.form_submit_button("➕ Плюс", use_container_width=True)
+            sub_btn = c_minus.form_submit_button("➖ Минус", use_container_width=True)
             
             if add_btn:
                 add_money_transaction(name, amt, "Пополнение")
@@ -202,6 +214,7 @@ def draw_child_card(name, points, money, theme_color):
             if sub_btn:
                 add_money_transaction(name, -amt, "Трата")
                 st.rerun()
+
 # --- ГЛАВНЫЙ ЭКРАН ---
 st.title("Kids Tracker 🚀")
 
@@ -246,15 +259,16 @@ else:
         draw_child_card("Софа", calculate_balance('Софа', points_data), calculate_money('Софа', money_data), "#FF0000")
     with col_l:
         draw_child_card("Лиса", calculate_balance('Лиса', points_data), calculate_money('Лиса', money_data), "#FF69B4")
-st.divider()
 
-# --- ЛЕГЕНДА НАГРАД (ВНИЗУ) ---
-legend_html = """
-<div style="display:flex; text-align:center; font-weight:bold; border: 3px solid black; margin-top: 20px;">
-    <div style="flex:1; background-color:#800000; color:white; padding:15px;">0-24<br>НИЧЕГО</div>
-    <div style="flex:1; background-color:#FF8C00; color:black; padding:15px; border-left:3px solid black;">25-49<br>СЛАДОСТИ</div>
-    <div style="flex:1; background-color:#FFD700; color:black; padding:15px; border-left:3px solid black;">50-74<br>МУЛЬТФИЛЬМЫ</div>
-    <div style="flex:1; background-color:#32CD32; color:black; padding:15px; border-left:3px solid black;">75-100<br>ЭКРАН ПО ВЫБОРУ</div>
-</div>
-"""
-st.markdown(legend_html, unsafe_allow_html=True)
+# --- ЛЕГЕНДА НАГРАД (ВНИЗУ) — ТОЛЬКО ДЛЯ ДЕТЕЙ ---
+if not is_admin:
+    st.divider()
+    legend_html = """
+    <div style="display:flex; text-align:center; font-weight:bold; border: 3px solid black; margin-top: 20px;">
+        <div style="flex:1; background-color:#800000; color:white; padding:15px;">0-24<br>НИЧЕГО</div>
+        <div style="flex:1; background-color:#FF8C00; color:black; padding:15px; border-left:3px solid black;">25-49<br>СЛАДОСТИ</div>
+        <div style="flex:1; background-color:#FFD700; color:black; padding:15px; border-left:3px solid black;">50-74<br>МУЛЬТФИЛЬМЫ</div>
+        <div style="flex:1; background-color:#32CD32; color:black; padding:15px; border-left:3px solid black;">75-100<br>ЭКРАН ПО ВЫБОРУ</div>
+    </div>
+    """
+    st.markdown(legend_html, unsafe_allow_html=True)
