@@ -3,6 +3,7 @@ import uuid
 from datetime import datetime
 import streamlit as st
 import json
+import pandas as pd
 
 # --- НАСТРОЙКА СВЯЗИ (С КЭШИРОВАНИЕМ ПОДКЛЮЧЕНИЯ) ---
 # Эта команда говорит: установи связь 1 раз и держи её открытой
@@ -274,3 +275,79 @@ if not is_admin:
     </div>
     """
     st.markdown(legend_html, unsafe_allow_html=True)
+
+# --- ЖУРНАЛ ОПЕРАЦИЙ (ТОЛЬКО ДЛЯ АДМИНОВ) ---
+if is_admin:
+    st.divider()
+    
+    with st.expander("📜 Журнал последних операций", expanded=False):
+        try:
+            # --- ВКЛАДКИ ЖУРНАЛА ---
+            tab_log_points, tab_log_money = st.tabs(["Баллы", "Деньги"])
+            
+            # --- ИСТОРИЯ БАЛЛОВ ---
+            with tab_log_points:
+                # Надежная проверка: если в списке больше 0 элементов
+                if len(points_data) > 0:
+                    df_points = pd.DataFrame(points_data)
+                    
+                    # Берем ровно 10 последних записей и переворачиваем их (свежие сверху)
+                    df_points = df_points.tail(10).iloc[::-1]
+                    
+                    # Оставляем только нужные колонки
+                    df_points = df_points[['Дата', 'Ребенок', 'Изменение баллов', 'Причина']]
+                    
+                    # Красим ячейки: плюс - зеленым, минус - красным
+                    def color_points(val):
+                        try:
+                            if float(val) > 0:
+                                return 'color: #00FF00; font-weight: bold;'
+                            elif float(val) < 0:
+                                return 'color: #FF4500; font-weight: bold;'
+                        except:
+                            pass
+                        return ''
+                        
+                    # Выводим таблицу
+                    st.dataframe(
+                        df_points.style.map(color_points, subset=['Изменение баллов']),
+                        use_container_width=True,
+                        hide_index=True
+                    )
+                else:
+                    st.info("История баллов пуста.")
+                    
+            # --- ИСТОРИЯ ДЕНЕГ ---
+            with tab_log_money:
+                # Надежная проверка: если в списке больше 0 элементов
+                if len(money_data) > 0:
+                    df_money = pd.DataFrame(money_data)
+                    
+                    # Берем 10 последних и переворачиваем
+                    df_money = df_money.tail(10).iloc[::-1]
+                    
+                    # Оставляем нужные колонки
+                    df_money = df_money[['Дата', 'Ребенок', 'Сумма', 'Описание']]
+                    
+                    # Красим ячейки
+                    def color_money(val):
+                        try:
+                            if float(val) > 0:
+                                return 'color: #00FF00; font-weight: bold;'
+                            elif float(val) < 0:
+                                return 'color: #FF4500; font-weight: bold;'
+                        except:
+                            pass
+                        return ''
+                        
+                    # Выводим таблицу
+                    st.dataframe(
+                        df_money.style.map(color_money, subset=['Сумма']),
+                        use_container_width=True,
+                        hide_index=True
+                    )
+                else:
+                    st.info("История денег пуста.")
+                    
+        except Exception as e:
+            st.warning(f"Не удалось отобразить журнал: {e}")
