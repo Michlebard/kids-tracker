@@ -249,7 +249,7 @@ if is_admin_mobile:
     with tab_s:
         draw_child_card("Софа", calculate_balance('Софа', points_data), calculate_money('Софа', money_data), "#FF0000")
     with tab_l:
-        draw_child_card("Лиса", calculate_balance('Лиса', points_data), calculate_money('Лиса', money_data), "#FF69B4")
+        draw_child_card("Лиса", calculate_balance('Лиса', points_data), calculate_money('Лиса', money_data), "#7F00FF")
 
 else:
     # 💻 ДЕСКТОПНАЯ АДМИНКА (?admin=1) ИЛИ РЕЖИМ ДЕТЕЙ — Три колонки
