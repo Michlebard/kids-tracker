@@ -211,19 +211,41 @@ if not is_admin:
 # Загружаем данные
 children_data, points_data, money_data = load_data()
 
-# Рисуем 3 колонки для детей
-col_k, col_s, col_l = st.columns(3)
+# --- АДАПТИВНЫЙ ГЛАВНЫЙ ЭКРАН ---
+st.divider()
 
-# Рисуем 3 колонки для детей с обновленными цветами
-col_k, col_s, col_l = st.columns(3)
+# CSS для мелких корректировок на мобильных экранах оставляем
+st.markdown("""
+    <style>
+    @media (max-width: 600px) {
+        div[data-testid="stMetricValue"] { font-size: 1.5rem !important; }
+        .stTabs [data-baseweb="tab-list"] { justify-content: center; }
+    }
+    </style>
+""", unsafe_allow_html=True)
 
-with col_k:
-    draw_child_card("Кир", calculate_balance('Кир', points_data), calculate_money('Кир', money_data), "#00BFFF") # Голубой
-with col_s:
-    draw_child_card("Софа", calculate_balance('Софа', points_data), calculate_money('Софа', money_data), "#FF0000") # Красный
-with col_l:
-    draw_child_card("Лиса", calculate_balance('Лиса', points_data), calculate_money('Лиса', money_data), "#FF69B4") # Розовый
+# РАЗДЕЛЯЕМ ИНТЕРФЕЙСЫ
+if is_admin:
+    # 📱 АДМИНСКИЙ ВИД (ТЕЛЕФОН) — Вкладки
+    tab_k, tab_s, tab_l = st.tabs(["👦 Кир", "👧 Софа", "🦊 Лиса"])
+    
+    with tab_k:
+        draw_child_card("Кир", calculate_balance('Кир', points_data), calculate_money('Кир', money_data), "#00BFFF")
+    with tab_s:
+        draw_child_card("Софа", calculate_balance('Софа', points_data), calculate_money('Софа', money_data), "#FF0000")
+    with tab_l:
+        draw_child_card("Лиса", calculate_balance('Лиса', points_data), calculate_money('Лиса', money_data), "#FF69B4")
 
+else:
+    # 💻 РЕЖИМ ПРОСМОТРА (ДЕСКТОП/ДЕТИ) — Три колонки
+    col_k, col_s, col_l = st.columns(3)
+    
+    with col_k:
+        draw_child_card("Кир", calculate_balance('Кир', points_data), calculate_money('Кир', money_data), "#00BFFF")
+    with col_s:
+        draw_child_card("Софа", calculate_balance('Софа', points_data), calculate_money('Софа', money_data), "#FF0000")
+    with col_l:
+        draw_child_card("Лиса", calculate_balance('Лиса', points_data), calculate_money('Лиса', money_data), "#FF69B4")
 st.divider()
 
 # --- ЛЕГЕНДА НАГРАД (ВНИЗУ) ---
