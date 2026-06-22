@@ -20,7 +20,10 @@ def get_connection():
 sh = get_connection()
 
 # --- ПРОВЕРКА ПРАВ ДОСТУПА ПО ССЫЛКЕ ---
-is_admin = st.query_params.get("admin") == "1"
+admin_param = st.query_params.get("admin")
+is_admin_desktop = admin_param == "1" # Компьютерная админка
+is_admin_mobile = admin_param == "2"  # Телефонная админка
+is_admin = is_admin_desktop or is_admin_mobile # Любой из админов (для показа кнопок)
 
 @st.cache_data
 def load_data():
@@ -51,8 +54,6 @@ def get_status(balance):
     else:
         return "🌱 В начале пути"
 
-# Обновленная функция записи с защитой от переполнения
-# Теперь мы передаем в неё текущий баланс ребенка (current_balance)
 # Обновленная функция записи с защитой от переполнения (100) и ухода в минус (0)
 def add_transaction(child_name, points_change, comment, current_balance):
     
@@ -102,79 +103,93 @@ def get_reward_and_color(balance):
     else:
         return "ЭКРАН", "#32CD32"  # Зеленый
 
-# --- ОБНОВЛЕННАЯ КАРТОЧКА РЕБЕНКА ---
-# --- ОБНОВЛЕННАЯ КАРТОЧКА РЕБЕНКА ---
-# --- ОБНОВЛЕННАЯ КАРТОЧКА РЕБЕНКА ---
-# Добавили параметр theme_color
-# --- ОБНОВЛЕННАЯ КАРТОЧКА РЕБЕНКА ---
-# --- ОБНОВЛЕННАЯ КАРТОЧКА РЕБЕНКА С УМНЫМ МАСШТАБОМ ---
+# --- ОБНОВЛЕННАЯ КАРТОЧКА РЕБЕНКА С ИНДИВИДУАЛЬНЫМ МОБИЛЬНЫМ UX ---
 def draw_child_card(name, points, money, theme_color):
     reward, bar_color = get_reward_and_color(points)
+    height_pct = max(0, min(points, 100)) 
     
-    # Имя сверху персональным цветом
-    st.markdown(f"<h3 style='text-align: center; color: {theme_color}; margin-bottom: 0;'>{name}</h3>", unsafe_allow_html=True)
-    
-    # ДИНАМИЧЕСКИЙ МАСШТАБ: Если админ, делаем всё компактным (примерно на 40% меньше)
-    if is_admin:
-        bar_height = "110px"
-        bar_width = "42px"
-        font_size = "18px"
-        pig_size = "130"
-        pig_box_height = "130px"
-    else:
-        bar_height = "160px"
-        bar_width = "60px"
-        font_size = "24px"
-        pig_size = "210"
-        pig_box_height = "220px"
-    
-    # Колонки: Слева - прогресс, Справа - копилка
-    col_bar, col_pig = st.columns(2)
-    
-    with col_bar:
-        height_pct = max(0, min(points, 100)) 
-        html_bar = f"""
-        <div style="display: flex; justify-content: center; margin-top: 10px;">
-            <div style="position: relative; height: {bar_height}; width: {bar_width}; border: 3px solid black; background-color: #f0f0f0; border-radius: 8px; overflow: hidden;">
-                <div style="position: absolute; bottom: 0; width: 100%; height: {height_pct}%; background-color: {bar_color}; transition: height 0.5s;"></div>
-                <div style="position: absolute; width: 100%; top: 50%; transform: translateY(-50%); text-align: center; font-family: sans-serif; font-size: {font_size}; font-weight: bold; color: black; text-shadow: 1px 1px 0px white, -1px -1px 0px white, 1px -1px 0px white, -1px 1px 0px white;">
-                    {points}
-                </div>
-            </div>
+    if is_admin_mobile:
+        # 📱 МОБИЛЬНАЯ АДМИНКА (?admin=2) — Все элементы ЖЕСТКО в одну строку
+        # Обязательно без пустых строк внутри кавычек, чтобы Markdown не ломал код!
+        # 📱 МОБИЛЬНАЯ АДМИНКА — Ограничили ширину всей строки до 260px и отцентрировали
+        html_mobile_row = f"""
+<div style="display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 8px; max-width: 260px; margin: 0 auto 5px auto;">
+    <div style="font-size: 20px; font-weight: bold; color: {theme_color}; min-width: 55px; text-align: left;">{name}</div>
+    <div style="flex-grow: 1; position: relative; height: 26px; border: 2px solid black; background-color: #f0f0f0; border-radius: 6px; overflow: hidden;">
+        <div style="width: {height_pct}%; height: 100%; background-color: {bar_color}; transition: width 0.5s;"></div>
+        <div style="position: absolute; width: 100%; top: 50%; transform: translateY(-50%); text-align: center; font-family: sans-serif; font-size: 15px; font-weight: bold; color: black; text-shadow: 1px 1px 0px white, -1px -1px 0px white, 1px -1px 0px white, -1px 1px 0px white;">
+            {points}
         </div>
-        """
-        st.markdown(html_bar, unsafe_allow_html=True)
-        
-    with col_pig:
-        html_piggy = f"""
-<div style="display: flex; justify-content: center; align-items: center; height: {pig_box_height};">
-    <svg width="{pig_size}" height="{pig_size}" viewBox="0 0 120 100">
-        <circle cx="60" cy="18" r="10" fill="#FFD700" stroke="#DAA520" stroke-width="2"/>
-        <text x="60" y="21.5" font-family="sans-serif" font-size="10" font-weight="bold" fill="#DAA520" text-anchor="middle">₪</text>
-        <rect x="35" y="70" width="12" height="15" rx="3" fill="#fbcfe8" stroke="#db2777" stroke-width="2"/>
-        <rect x="75" y="70" width="12" height="15" rx="3" fill="#fbcfe8" stroke="#db2777" stroke-width="2"/>
-        <polygon points="35,40 45,20 55,35" fill="#fbcfe8" stroke="#db2777" stroke-width="2" stroke-linejoin="round"/>
-        <ellipse cx="60" cy="55" rx="45" ry="28" fill="#fbcfe8" stroke="#db2777" stroke-width="2"/>
-        <ellipse cx="105" cy="55" rx="8" ry="14" fill="#f472b6" stroke="#db2777" stroke-width="2"/>
-        <circle cx="85" cy="45" r="3.5" fill="#db2777"/>
-        <line x1="45" y1="35" x2="75" y2="35" stroke="#db2777" stroke-width="3" stroke-linecap="round"/>
-        <text x="60" y="63" font-family="sans-serif" font-size="22" font-weight="bold" fill="#831843" text-anchor="middle">{money} ₪</text>
-    </svg>
+    </div>
+    <div style="width: 75px; height: 75px; display: flex; align-items: center; justify-content: center;">
+        <svg width="75" height="75" viewBox="0 0 120 100">
+            <circle cx="60" cy="18" r="10" fill="#FFD700" stroke="#DAA520" stroke-width="2"/>
+            <text x="60" y="21.5" font-family="sans-serif" font-size="10" font-weight="bold" fill="#DAA520" text-anchor="middle">₪</text>
+            <rect x="35" y="70" width="12" height="15" rx="3" fill="#fbcfe8" stroke="#db2777" stroke-width="2"/>
+            <rect x="75" y="70" width="12" height="15" rx="3" fill="#fbcfe8" stroke="#db2777" stroke-width="2"/>
+            <polygon points="35,40 45,20 55,35" fill="#fbcfe8" stroke="#db2777" stroke-width="2" stroke-linejoin="round"/>
+            <ellipse cx="60" cy="55" rx="45" ry="28" fill="#fbcfe8" stroke="#db2777" stroke-width="2"/>
+            <ellipse cx="105" cy="55" rx="8" ry="14" fill="#f472b6" stroke="#db2777" stroke-width="2"/>
+            <circle cx="85" cy="45" r="3.5" fill="#db2777"/>
+            <line x1="45" y1="35" x2="75" y2="35" stroke="#db2777" stroke-width="3" stroke-linecap="round"/>
+            <text x="60" y="63" font-family="sans-serif" font-size="22" font-weight="bold" fill="#831843" text-anchor="middle">{money} ₪</text>
+        </svg>
+    </div>
 </div>
 """
-        st.markdown(html_piggy, unsafe_allow_html=True)
+        st.markdown(html_mobile_row, unsafe_allow_html=True)
+        
+    else:
+        # 💻 ДЕСКТОПНАЯ ВЕРСИЯ (ДЕТИ ИЛИ ?admin=1) — Классический крупный дашборд
+        st.markdown(f"<h3 style='text-align: center; color: {theme_color}; margin-bottom: 0;'>{name}</h3>", unsafe_allow_html=True)
+        
+        col_bar, col_pig = st.columns(2)
+        with col_bar:
+            html_bar = f"""
+            <div style="display: flex; justify-content: center; margin-top: 10px;">
+                <div style="position: relative; height: 160px; width: 60px; border: 3px solid black; background-color: #f0f0f0; border-radius: 8px; overflow: hidden;">
+                    <div style="position: absolute; bottom: 0; width: 100%; height: {height_pct}%; background-color: {bar_color}; transition: height 0.5s;"></div>
+                    <div style="position: absolute; width: 100%; top: 50%; transform: translateY(-50%); text-align: center; font-family: sans-serif; font-size: 24px; font-weight: bold; color: black; text-shadow: 1px 1px 0px white, -1px -1px 0px white, 1px -1px 0px white, -1px 1px 0px white;">
+                        {points}
+                    </div>
+                </div>
+            </div>
+            """
+            st.markdown(html_bar, unsafe_allow_html=True)
+            
+        with col_pig:
+            html_piggy = f"""
+            <div style="display: flex; justify-content: center; align-items: center; height: 220px;">
+                <svg width="210" height="210" viewBox="0 0 120 100">
+                    <circle cx="60" cy="18" r="10" fill="#FFD700" stroke="#DAA520" stroke-width="2"/>
+                    <text x="60" y="21.5" font-family="sans-serif" font-size="10" font-weight="bold" fill="#DAA520" text-anchor="middle">₪</text>
+                    <rect x="35" y="70" width="12" height="15" rx="3" fill="#fbcfe8" stroke="#db2777" stroke-width="2"/>
+                    <rect x="75" y="70" width="12" height="15" rx="3" fill="#fbcfe8" stroke="#db2777" stroke-width="2"/>
+                    <polygon points="35,40 45,20 55,35" fill="#fbcfe8" stroke="#db2777" stroke-width="2" stroke-linejoin="round"/>
+                    <ellipse cx="60" cy="55" rx="45" ry="28" fill="#fbcfe8" stroke="#db2777" stroke-width="2"/>
+                    <ellipse cx="105" cy="55" rx="8" ry="14" fill="#f472b6" stroke="#db2777" stroke-width="2"/>
+                    <circle cx="85" cy="45" r="3.5" fill="#db2777"/>
+                    <line x1="45" y1="35" x2="75" y2="35" stroke="#db2777" stroke-width="3" stroke-linecap="round"/>
+                    <text x="60" y="63" font-family="sans-serif" font-size="22" font-weight="bold" fill="#831843" text-anchor="middle">{money} ₪</text>
+                </svg>
+            </div>
+            """
+            st.markdown(html_piggy, unsafe_allow_html=True)
 
-    # 3. Пульт управления (только для админа)
+    # 3. Пульт управления (Для ЛЮБОГО админа)
     if is_admin:
-        # ЖЕСТКО СЖИМАЕМ ШИРИНУ БОКСА ДО 260px И ЦЕНТРИРУЕМ
+        if is_admin_mobile:
+            form_style = "max-width: 260px !important; margin: 5px auto 0 auto !important;"
+        else:
+            form_style = "margin-top: 10px !important;"
+            
         st.markdown(f"""
             <style>
             div[data-testid="stForm"]:has(#{name}_form_marker) {{
                 border: 2px solid {theme_color} !important;
                 background-color: {theme_color}15 !important;
                 border-radius: 14px !important;
-                max-width: 260px !important;
-                margin: 10px auto 0 auto !important;
+                {form_style}
             }}
             </style>
         """, unsafe_allow_html=True)
@@ -182,7 +197,6 @@ def draw_child_card(name, points, money, theme_color):
         with st.form(key=f"{name}_admin_panel", clear_on_submit=True):
             st.markdown(f'<div id="{name}_form_marker" style="display:none;"></div>', unsafe_allow_html=True)
             
-            # Блок баллов (Сетка 2x2)
             st.caption("Баллы:")
             r1_col1, r1_col2 = st.columns(2)
             if r1_col1.form_submit_button("+5", use_container_width=True):
@@ -200,7 +214,6 @@ def draw_child_card(name, points, money, theme_color):
                 add_transaction(name, -5, 'Списание', points)
                 st.rerun()
                 
-            # Блок денег
             st.caption("Деньги:")
             amt = st.number_input("Сумма:", min_value=1, step=1, label_visibility="collapsed")
             
@@ -214,7 +227,6 @@ def draw_child_card(name, points, money, theme_color):
             if sub_btn:
                 add_money_transaction(name, -amt, "Трата")
                 st.rerun()
-
 # --- ГЛАВНЫЙ ЭКРАН ---
 st.title("Kids Tracker 🚀")
 
@@ -227,19 +239,9 @@ children_data, points_data, money_data = load_data()
 # --- АДАПТИВНЫЙ ГЛАВНЫЙ ЭКРАН ---
 st.divider()
 
-# CSS для мелких корректировок на мобильных экранах оставляем
-st.markdown("""
-    <style>
-    @media (max-width: 600px) {
-        div[data-testid="stMetricValue"] { font-size: 1.5rem !important; }
-        .stTabs [data-baseweb="tab-list"] { justify-content: center; }
-    }
-    </style>
-""", unsafe_allow_html=True)
-
 # РАЗДЕЛЯЕМ ИНТЕРФЕЙСЫ
-if is_admin:
-    # 📱 АДМИНСКИЙ ВИД (ТЕЛЕФОН) — Вкладки
+if is_admin_mobile:
+    # 📱 МОБИЛЬНАЯ АДМИНКА (?admin=2) — Вкладки
     tab_k, tab_s, tab_l = st.tabs(["👦 Кир", "👧 Софа", "🦊 Лиса"])
     
     with tab_k:
@@ -250,7 +252,7 @@ if is_admin:
         draw_child_card("Лиса", calculate_balance('Лиса', points_data), calculate_money('Лиса', money_data), "#FF69B4")
 
 else:
-    # 💻 РЕЖИМ ПРОСМОТРА (ДЕСКТОП/ДЕТИ) — Три колонки
+    # 💻 ДЕСКТОПНАЯ АДМИНКА (?admin=1) ИЛИ РЕЖИМ ДЕТЕЙ — Три колонки
     col_k, col_s, col_l = st.columns(3)
     
     with col_k:
