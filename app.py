@@ -278,18 +278,18 @@ def draw_child_card(name, points, money, theme_color):
             st.caption("Баллы:")
             r1_col1, r1_col2 = st.columns(2)
             if r1_col1.form_submit_button("+5", use_container_width=True):
-                add_transaction(name, 5, 'Начисление', points)
+                add_transaction(name, 5, 'Начисление')
                 st.rerun()
             if r1_col2.form_submit_button("+1", use_container_width=True):
-                add_transaction(name, 1, 'Начисление', points)
+                add_transaction(name, 1, 'Начисление')
                 st.rerun()
                 
             r2_col1, r2_col2 = st.columns(2)
             if r2_col1.form_submit_button("-1", use_container_width=True):
-                add_transaction(name, -1, 'Списание', points)
+                add_transaction(name, -1, 'Списание')
                 st.rerun()
             if r2_col2.form_submit_button("-5", use_container_width=True):
-                add_transaction(name, -5, 'Списание', points)
+                add_transaction(name, -5, 'Списание')
                 st.rerun()
                 
             st.caption("Деньги:")
