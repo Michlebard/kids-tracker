@@ -68,7 +68,7 @@ def load_data():
             "ID лога": str(row["id"]),
             "Дата": date_str,
             "Ребенок": row["child_name"],
-            "Изменение баллов": row["points_change"],
+            "Баллы": row["points_change"],
             "Причина": row["reason"]
         })
         
@@ -96,7 +96,7 @@ def calculate_balance(target_name, points_data):
     total = 0
     for row in points_data:
         if row['Ребенок'] == target_name:
-            total = total + int(row['Изменение баллов'])
+            total = total + int(row['Баллы'])
     return total  # Возвращаем честную сумму, маскировка больше не нужна
 
 def calculate_money(target_name, money_data):
@@ -368,10 +368,10 @@ if is_admin:
         # Скрываем лишние кнопки (скачивание, поиск, разворачивание) у таблиц
         st.markdown("""
             <style>
-            /* Скрывает всплывающую панель инструментов над таблицами */
+            /* Скрываем всплывающую панель инструментов над таблицами */
             [data-testid="stElementToolbar"] {
                 display: none !important;
-            }
+            } 
             </style>
         """, unsafe_allow_html=True)
         try:
@@ -386,18 +386,19 @@ if is_admin:
                     
                     editor_key_p = "points_editor"
                     
-                    # Выводим интерактивную таблицу
+                    # Выводим интерактивную таблицу (ужатую под мобильный)
                     st.data_editor(
                         df_points_recent,
                         column_config={
-                            "ID лога": None, # Прячем ID от глаз
-                            "Дата": st.column_config.TextColumn(disabled=True),
-                            "Ребенок": st.column_config.TextColumn(disabled=True),
-                            "Изменение баллов": st.column_config.NumberColumn(step=1)
+                            "ID лога": None, # Прячем ID
+                            "Дата": st.column_config.TextColumn(disabled=True, width="small"),
+                            "Ребенок": st.column_config.TextColumn(disabled=True, width="small"),
+                            "Баллы": st.column_config.NumberColumn(step=1),
+                            "Причина": st.column_config.TextColumn()
                         },
-                        num_rows="dynamic", # Разрешаем удалять строки
+                        num_rows="dynamic",
                         key=editor_key_p,
-                        use_container_width=True
+                        use_container_width=False # Отключаем растягивание на весь экран
                     )
                     
                     # Кнопка сохранения изменений
@@ -415,8 +416,8 @@ if is_admin:
                             update_data = {}
                             
                             # Переводим русские названия колонок в английские для базы
-                            if "Изменение баллов" in edits:
-                                update_data["points_change"] = edits["Изменение баллов"]
+                            if "Баллы" in edits:
+                                update_data["points_change"] = edits["Баллы"]
                             if "Причина" in edits:
                                 update_data["reason"] = edits["Причина"]
                                 
@@ -437,17 +438,19 @@ if is_admin:
                     
                     editor_key_m = "money_editor"
                     
+                    # Выводим интерактивную таблицу (ужатую под мобильный)
                     st.data_editor(
                         df_money_recent,
                         column_config={
                             "ID транзакции": None,
-                            "Дата": st.column_config.TextColumn(disabled=True),
-                            "Ребенок": st.column_config.TextColumn(disabled=True),
-                            "Сумма": st.column_config.NumberColumn(step=1)
+                            "Дата": st.column_config.TextColumn(disabled=True, width="small"),
+                            "Ребенок": st.column_config.TextColumn(disabled=True, width="small"),
+                            "Сумма": st.column_config.NumberColumn(step=1, width="small"),
+                            "Описание": st.column_config.TextColumn(width="small")
                         },
                         num_rows="dynamic",
                         key=editor_key_m,
-                        use_container_width=True
+                        use_container_width=False # Отключаем растягивание на весь экран
                     )
                     
                     if st.button("💾 Сохранить изменения денег", type="primary", key="save_mon_btn"):
