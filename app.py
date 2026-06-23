@@ -5,6 +5,7 @@ import streamlit as st
 import json
 import pandas as pd
 from supabase import create_client, Client
+from streamlit_autorefresh import st_autorefresh
 
 # --- НАСТРОЙКА СВЯЗИ c google sheets (С КЭШИРОВАНИЕМ ПОДКЛЮЧЕНИЯ) ---
 # Эта команда говорит: установи связь 1 раз и держи её открытой
@@ -219,40 +220,44 @@ def draw_child_card(name, points, money, theme_color):
         
     else:
         # 💻 ДЕСКТОПНАЯ ВЕРСИЯ (ДЕТИ ИЛИ ?admin=1) — Классический крупный дашборд
-        st.markdown(f"<h3 style='text-align: center; color: {theme_color}; margin-bottom: 0;'>{name}</h3>", unsafe_allow_html=True)
-        
-        col_bar, col_pig = st.columns(2)
-        with col_bar:
-            html_bar = f"""
-            <div style="display: flex; justify-content: center; margin-top: 10px;">
-                <div style="position: relative; height: 160px; width: 60px; border: 3px solid black; background-color: #f0f0f0; border-radius: 8px; overflow: hidden;">
-                    <div style="position: absolute; bottom: 0; width: 100%; height: {height_pct}%; background-color: {bar_color}; transition: height 0.5s;"></div>
-                    <div style="position: absolute; width: 100%; top: 50%; transform: translateY(-50%); text-align: center; font-family: sans-serif; font-size: 24px; font-weight: bold; color: black; text-shadow: 1px 1px 0px white, -1px -1px 0px white, 1px -1px 0px white, -1px 1px 0px white;">
-                        {points}
+        if not is_admin: 
+        # Заставляем страницу незаметно обновляться каждые 5 секунд (5000 миллисекунд)
+            st_autorefresh(interval=5000, key="tv_refresh")
+
+            st.markdown(f"<h3 style='text-align: center; color: {theme_color}; margin-bottom: 0;'>{name}</h3>", unsafe_allow_html=True)
+            
+            col_bar, col_pig = st.columns(2)
+            with col_bar:
+                html_bar = f"""
+                <div style="display: flex; justify-content: center; margin-top: 10px;">
+                    <div style="position: relative; height: 160px; width: 60px; border: 3px solid black; background-color: #f0f0f0; border-radius: 8px; overflow: hidden;">
+                        <div style="position: absolute; bottom: 0; width: 100%; height: {height_pct}%; background-color: {bar_color}; transition: height 0.5s;"></div>
+                        <div style="position: absolute; width: 100%; top: 50%; transform: translateY(-50%); text-align: center; font-family: sans-serif; font-size: 24px; font-weight: bold; color: black; text-shadow: 1px 1px 0px white, -1px -1px 0px white, 1px -1px 0px white, -1px 1px 0px white;">
+                            {points}
+                        </div>
                     </div>
                 </div>
-            </div>
-            """
-            st.markdown(html_bar, unsafe_allow_html=True)
-            
-        with col_pig:
-            html_piggy = f"""
-            <div style="display: flex; justify-content: center; align-items: center; height: 220px;">
-                <svg width="210" height="210" viewBox="0 0 120 100">
-                    <circle cx="60" cy="18" r="10" fill="#FFD700" stroke="#DAA520" stroke-width="2"/>
-                    <text x="60" y="21.5" font-family="sans-serif" font-size="10" font-weight="bold" fill="#DAA520" text-anchor="middle">₪</text>
-                    <rect x="35" y="70" width="12" height="15" rx="3" fill="#fbcfe8" stroke="#db2777" stroke-width="2"/>
-                    <rect x="75" y="70" width="12" height="15" rx="3" fill="#fbcfe8" stroke="#db2777" stroke-width="2"/>
-                    <polygon points="35,40 45,20 55,35" fill="#fbcfe8" stroke="#db2777" stroke-width="2" stroke-linejoin="round"/>
-                    <ellipse cx="60" cy="55" rx="45" ry="28" fill="#fbcfe8" stroke="#db2777" stroke-width="2"/>
-                    <ellipse cx="105" cy="55" rx="8" ry="14" fill="#f472b6" stroke="#db2777" stroke-width="2"/>
-                    <circle cx="85" cy="45" r="3.5" fill="#db2777"/>
-                    <line x1="45" y1="35" x2="75" y2="35" stroke="#db2777" stroke-width="3" stroke-linecap="round"/>
-                    <text x="60" y="63" font-family="sans-serif" font-size="22" font-weight="bold" fill="#831843" text-anchor="middle">{money} ₪</text>
-                </svg>
-            </div>
-            """
-            st.markdown(html_piggy, unsafe_allow_html=True)
+                """
+                st.markdown(html_bar, unsafe_allow_html=True)
+                
+            with col_pig:
+                html_piggy = f"""
+                <div style="display: flex; justify-content: center; align-items: center; height: 220px;">
+                    <svg width="210" height="210" viewBox="0 0 120 100">
+                        <circle cx="60" cy="18" r="10" fill="#FFD700" stroke="#DAA520" stroke-width="2"/>
+                        <text x="60" y="21.5" font-family="sans-serif" font-size="10" font-weight="bold" fill="#DAA520" text-anchor="middle">₪</text>
+                        <rect x="35" y="70" width="12" height="15" rx="3" fill="#fbcfe8" stroke="#db2777" stroke-width="2"/>
+                        <rect x="75" y="70" width="12" height="15" rx="3" fill="#fbcfe8" stroke="#db2777" stroke-width="2"/>
+                        <polygon points="35,40 45,20 55,35" fill="#fbcfe8" stroke="#db2777" stroke-width="2" stroke-linejoin="round"/>
+                        <ellipse cx="60" cy="55" rx="45" ry="28" fill="#fbcfe8" stroke="#db2777" stroke-width="2"/>
+                        <ellipse cx="105" cy="55" rx="8" ry="14" fill="#f472b6" stroke="#db2777" stroke-width="2"/>
+                        <circle cx="85" cy="45" r="3.5" fill="#db2777"/>
+                        <line x1="45" y1="35" x2="75" y2="35" stroke="#db2777" stroke-width="3" stroke-linecap="round"/>
+                        <text x="60" y="63" font-family="sans-serif" font-size="22" font-weight="bold" fill="#831843" text-anchor="middle">{money} ₪</text>
+                    </svg>
+                </div>
+                """
+                st.markdown(html_piggy, unsafe_allow_html=True)
 
     # 3. Пульт управления (Для ЛЮБОГО админа)
     if is_admin:
