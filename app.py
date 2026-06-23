@@ -309,8 +309,8 @@ def draw_child_card(name, points, money, theme_color):
 # --- ГЛАВНЫЙ ЭКРАН ---
 st.title("Kids Tracker 🚀")
 
-if not is_admin:
-    st.info("Режим просмотра")
+# if not is_admin:
+#     st.info("Режим просмотра")
 
 # Загружаем данные
 children_data, points_data, money_data = load_data()
