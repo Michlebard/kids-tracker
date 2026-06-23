@@ -1,0 +1,5 @@
+[theme]
+primaryColor = "#31a6ea" # Ярко-зеленый (или любой другой, например #1E90FF для синего)
+backgroundColor = "#0E1117" # Фон приложения (темный)
+secondaryBackgroundColor = "#262730" # Фон блоков и инпутов
+textColor = "#FAFAFA" # Цвет текста
