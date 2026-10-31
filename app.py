@@ -6,6 +6,7 @@ import json
 import pandas as pd
 from supabase import create_client, Client
 from streamlit_autorefresh import st_autorefresh
+from data_access import fetch_log_rows
 
 # --- НАСТРОЙКА СВЯЗИ c google sheets (С КЭШИРОВАНИЕМ ПОДКЛЮЧЕНИЯ) ---
 # Эта команда говорит: установи связь 1 раз и держи её открытой
@@ -37,7 +38,7 @@ is_admin_desktop = admin_param == "1" # Компьютерная админка
 is_admin_mobile = admin_param == "2"  # Телефонная админка
 is_admin = is_admin_desktop or is_admin_mobile # Любой из админов (для показа кнопок)
 
-@st.cache_data
+@st.cache_data(ttl=5)
 
 #Загрузка данных с google sheets
 #def load_data():
@@ -54,9 +55,9 @@ def load_data():
     children_data = [{"Ребенок": row["name"]} for row in children_res.data]
     
     # 2. ЧИТАЕМ ИСТОРИЮ БАЛЛОВ
-    points_res = supabase.table("points_log").select("*").execute()
+    points_rows = fetch_log_rows(supabase, "points_log")
     points_data = []
-    for row in points_res.data:
+    for row in points_rows:
         # Конвертируем дату из базы '2026-06-22T15:16:28+03:00' в привычный '22.06.2026'
         try:
             dt = datetime.fromisoformat(row["date_added"])
@@ -73,9 +74,9 @@ def load_data():
         })
         
     # 3. ЧИТАЕМ ИСТОРИЮ ДЕНЕГ
-    money_res = supabase.table("money_log").select("*").execute()
+    money_rows = fetch_log_rows(supabase, "money_log")
     money_data = []
-    for row in money_res.data:
+    for row in money_rows:
         try:
             dt = datetime.fromisoformat(row["date_added"])
             date_str = dt.strftime("%d.%m.%Y")
