@@ -1,178 +1,94 @@
-#import gspread
-import uuid
 from datetime import datetime
-import streamlit as st
-import json
+
 import pandas as pd
-from supabase import create_client, Client
+import streamlit as st
+from supabase import create_client
 from streamlit_autorefresh import st_autorefresh
-from data_access import fetch_log_rows
 
-# --- НАСТРОЙКА СВЯЗИ c google sheets (С КЭШИРОВАНИЕМ ПОДКЛЮЧЕНИЯ) ---
-# Эта команда говорит: установи связь 1 раз и держи её открытой
-#@st.cache_resource
-#def get_connection():
-#    try:
-#        credentials_dict = json.loads(st.secrets["google_key"])
-#        gc = gspread.service_account_from_dict(credentials_dict)
-#    except Exception:
-#        gc = gspread.service_account(filename='credentials.json')
+from data_access import fetch_balances, fetch_recent_log_rows
 
-#    return gc.open_by_url('https://docs.google.com/spreadsheets/d/1D_HdduxF55bPyvisoz9GTpeYssozQ1WnBe2nsN3KhaQ/edit')
 
-# Получаем наше подключение из кэша
-#sh = get_connection()
-
-# --- ПОДКЛЮЧЕНИЕ К БАЗЕ ДАННЫХ SUPABASE ---
 @st.cache_resource
 def init_connection():
-    url = st.secrets["SUPABASE_URL"]
-    key = st.secrets["SUPABASE_KEY"]
-    return create_client(url, key)
+    return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
+
 
 supabase = init_connection()
 
-# --- ПРОВЕРКА ПРАВ ДОСТУПА ПО ССЫЛКЕ ---
+# These parameters select the existing desktop/mobile admin interface.
 admin_param = st.query_params.get("admin")
-is_admin_desktop = admin_param == "1" # Компьютерная админка
-is_admin_mobile = admin_param == "2"  # Телефонная админка
-is_admin = is_admin_desktop or is_admin_mobile # Любой из админов (для показа кнопок)
+is_admin_desktop = admin_param == "1"
+is_admin_mobile = admin_param == "2"
+is_admin = is_admin_desktop or is_admin_mobile
+
 
 @st.cache_data(ttl=5)
+def load_balances():
+    return fetch_balances(supabase)
 
-#Загрузка данных с google sheets
-#def load_data():
-#    ws_children = sh.worksheet('Children')
-#    ws_points = sh.worksheet('История баллов')
-#    ws_money = sh.worksheet('История денег')
-#    return ws_children.get_all_records(), ws_points.get_all_records(), ws_money.get_all_records()
 
-#Загрузка данных с supabase
-def load_data():
-    # 1. ЧИТАЕМ СПИСОК ДЕТЕЙ
-    children_res = supabase.table("children").select("*").execute()
-    # Превращаем в формат [{'Ребенок': 'Кир'}, ...] как было в Гугле
-    children_data = [{"Ребенок": row["name"]} for row in children_res.data]
-    
-    # 2. ЧИТАЕМ ИСТОРИЮ БАЛЛОВ
-    points_rows = fetch_log_rows(supabase, "points_log")
-    points_data = []
-    for row in points_rows:
-        # Конвертируем дату из базы '2026-06-22T15:16:28+03:00' в привычный '22.06.2026'
-        try:
-            dt = datetime.fromisoformat(row["date_added"])
-            date_str = dt.strftime("%d.%m.%Y")
-        except:
-            date_str = row["date_added"]
-            
-        points_data.append({
+def format_date(value):
+    try:
+        return datetime.fromisoformat(value).strftime("%d.%m.%Y")
+    except (TypeError, ValueError):
+        return value
+
+
+@st.cache_data(ttl=5)
+def load_recent_history():
+    points_data = [
+        {
             "ID лога": str(row["id"]),
-            "Дата": date_str,
+            "Дата": format_date(row["date_added"]),
             "Ребенок": row["child_name"],
             "Баллы": row["points_change"],
-            "Причина": row["reason"]
-        })
-        
-    # 3. ЧИТАЕМ ИСТОРИЮ ДЕНЕГ
-    money_rows = fetch_log_rows(supabase, "money_log")
-    money_data = []
-    for row in money_rows:
-        try:
-            dt = datetime.fromisoformat(row["date_added"])
-            date_str = dt.strftime("%d.%m.%Y")
-        except:
-            date_str = row["date_added"]
-            
-        money_data.append({
+            "Причина": row["reason"],
+        }
+        for row in fetch_recent_log_rows(supabase, "points_log")
+    ]
+    money_data = [
+        {
             "ID транзакции": str(row["id"]),
-            "Дата": date_str,
+            "Дата": format_date(row["date_added"]),
             "Ребенок": row["child_name"],
             "Сумма": row["amount"],
-            "Описание": row["description"]
-        })
-        
-    return children_data, points_data, money_data
+            "Описание": row["description"],
+        }
+        for row in fetch_recent_log_rows(supabase, "money_log")
+    ]
+    return points_data, money_data
 
-def calculate_balance(target_name, points_data):
-    total = 0
-    for row in points_data:
-        if row['Ребенок'] == target_name:
-            total = total + int(row['Баллы'])
-    return total  # Возвращаем честную сумму, маскировка больше не нужна
 
-def calculate_money(target_name, money_data):
-    total = 0
-    for row in money_data:
-        if row['Ребенок'] == target_name:
-            total = total + int(row['Сумма'])
-    return total
+def balance_for(name, balances):
+    balance = balances.get(name, {"points": 0, "money": 0})
+    return balance["points"], balance["money"]
 
-# Обновленная функция записи (для google sheets) с защитой от переполнения (100) и ухода в минус (0)
-# def add_transaction(child_name, points_change, comment, current_balance):
-    
-#     # ЛОГИКА ОГРАНИЧЕНИЯ ДО 100 (Начисление)
-#     if points_change > 0: 
-#         if current_balance + points_change > 100:
-#             # Высчитываем, сколько реально можно добавить до сотни
-#             points_change = 100 - current_balance 
-            
-#     # НОВАЯ ЛОГИКА ОГРАНИЧЕНИЯ ДО 0 (Списание)
-#     elif points_change < 0:
-#         if current_balance + points_change < 0:
-#             # Списываем ровно столько, сколько осталось на балансе
-#             points_change = -current_balance
-            
-#     # Если добавлять или списывать больше нечего (уже 100 или уже 0) — отменяем операцию
-#     if points_change == 0:
-#         return
 
-#     ws_points = sh.worksheet('История баллов')
-#     new_id = str(uuid.uuid4())[:8]
-#     current_date = datetime.now().strftime("%d.%m.%Y")
-#     new_row = [new_id, current_date, child_name, points_change, comment]
-#     ws_points.append_row(new_row)
-    
-#     # ВАЖНО: Сбрасываем кэш, так как мы изменили таблицу!
-#     st.cache_data.clear()
+def invalidate_data():
+    load_balances.clear()
+    load_recent_history.clear()
+    st.session_state.pop("journal_snapshot", None)
+    st.session_state["journal_revision"] = st.session_state.get("journal_revision", 0) + 1
 
-# def add_money_transaction(child_name, amount, comment):
-#     ws_money = sh.worksheet('История денег')
-#     new_id = str(uuid.uuid4())[:8]
-#     current_date = datetime.now().strftime("%d.%m.%Y")
-#     new_row = [new_id, current_date, child_name, amount, comment]
-#     ws_money.append_row(new_row)
-    
-#     # ВАЖНО: Сбрасываем кэш после изменения денег
-#     st.cache_data.clear()
 
-# Функции добавления записей
 def add_transaction(child_name, points_change, reason):
-    """Отправляет новую запись о баллах в Supabase"""
-    # Создаем словарь с данными, ключи ДОЛЖНЫ совпадать с названиями колонок в базе
-    new_row = {
+    # A database trigger updates the stored balance in the same transaction.
+    supabase.table("points_log").insert({
         "child_name": child_name,
         "points_change": points_change,
-        "reason": reason
-        # id и date_added база сгенерирует сама!
-    }
-    
-    # Отправляем в таблицу points_log
-    supabase.table("points_log").insert(new_row).execute()
-    
-    # Сбрасываем кэш Streamlit, чтобы новые данные сразу появились на экране
-    st.cache_data.clear()
+        "reason": reason,
+    }).execute()
+    invalidate_data()
+
 
 def add_money_transaction(child_name, amount, comment):
-    """Отправляет новую запись о деньгах в Supabase"""
-    new_row = {
+    supabase.table("money_log").insert({
         "child_name": child_name,
         "amount": amount,
-        "description": comment
-    }
-    
-    # Отправляем в таблицу money_log
-    supabase.table("money_log").insert(new_row).execute()
-    st.cache_data.clear()
+        "description": comment,
+    }).execute()
+    invalidate_data()
+
 
 # --- НОВАЯ ЛОГИКА НАГРАД И ЦВЕТОВ ---
 def get_reward_and_color(balance):
@@ -314,7 +230,11 @@ st.title("Kids Tracker 🚀")
 #     st.info("Режим просмотра")
 
 # Загружаем данные
-children_data, points_data, money_data = load_data()
+balances, migration_installed = load_balances()
+if is_admin and not migration_installed:
+    st.info("Для включения готовых балансов выполните скрипт "
+            "supabase/migrations/20261031_saved_balances.sql в Supabase SQL Editor. "
+            "До этого баланс рассчитывается по полной истории.")
 
 # --- АДАПТИВНЫЙ ГЛАВНЫЙ ЭКРАН ---
 st.divider()
@@ -329,22 +249,22 @@ if is_admin_mobile:
     tab_k, tab_s, tab_l = st.tabs(["👦 Кир", "👧 Софа", "🦊 Лиса"])
     
     with tab_k:
-        draw_child_card("Кир", calculate_balance('Кир', points_data), calculate_money('Кир', money_data), "#00BFFF")
+        draw_child_card("Кир", *balance_for('Кир', balances), "#00BFFF")
     with tab_s:
-        draw_child_card("Софа", calculate_balance('Софа', points_data), calculate_money('Софа', money_data), "#FF0000")
+        draw_child_card("Софа", *balance_for('Софа', balances), "#FF0000")
     with tab_l:
-        draw_child_card("Лиса", calculate_balance('Лиса', points_data), calculate_money('Лиса', money_data), "#7F00FF")
+        draw_child_card("Лиса", *balance_for('Лиса', balances), "#7F00FF")
 
 else:
     # 💻 ДЕСКТОПНАЯ АДМИНКА (?admin=1) ИЛИ РЕЖИМ ДЕТЕЙ — Три колонки
     col_k, col_s, col_l = st.columns(3)
     
     with col_k:
-        draw_child_card("Кир", calculate_balance('Кир', points_data), calculate_money('Кир', money_data), "#00BFFF")
+        draw_child_card("Кир", *balance_for('Кир', balances), "#00BFFF")
     with col_s:
-        draw_child_card("Софа", calculate_balance('Софа', points_data), calculate_money('Софа', money_data), "#FF0000")
+        draw_child_card("Софа", *balance_for('Софа', balances), "#FF0000")
     with col_l:
-        draw_child_card("Лиса", calculate_balance('Лиса', points_data), calculate_money('Лиса', money_data), "#7F00FF")
+        draw_child_card("Лиса", *balance_for('Лиса', balances), "#7F00FF")
 
 # --- ЛЕГЕНДА НАГРАД (ВНИЗУ) — ТОЛЬКО ДЛЯ ДЕТЕЙ ---
 if not is_admin:
@@ -365,6 +285,14 @@ if is_admin:
     st.divider()
     
     with st.expander("📜 Журнал операций", expanded=False):
+        st.caption("Последние 20 операций каждого журнала. Полная история сохранена в базе.")
+        if st.button("Обновить журнал", key="refresh_history"):
+            invalidate_data()
+            st.rerun()
+        # Keep row positions fixed while editing, even if another device writes.
+        if "journal_snapshot" not in st.session_state:
+            st.session_state["journal_snapshot"] = load_recent_history()
+        points_data, money_data = st.session_state["journal_snapshot"]
         #st.caption("✏️ Кликните на сумму или причину, чтобы изменить текст. Выделите строку слева и нажмите Delete (или значок корзины), чтобы удалить запись. После изменений обязательно нажмите кнопку сохранения.")
         # Скрываем лишние кнопки (скачивание, поиск, разворачивание) у таблиц
         st.markdown("""
@@ -383,9 +311,9 @@ if is_admin:
                 if len(points_data) > 0:
                     # Создаем таблицу и сбрасываем индексы, чтобы они совпадали с редактором (ВАЖНО!)
                     df_points = pd.DataFrame(points_data)
-                    df_points_recent = df_points.tail(10).iloc[::-1].reset_index(drop=True)
+                    df_points_recent = df_points.reset_index(drop=True)
                     
-                    editor_key_p = "points_editor"
+                    editor_key_p = f"points_editor_{st.session_state.get('journal_revision', 0)}"
                     
                     # Выводим интерактивную таблицу (ужатую под мобильный)
                     st.data_editor(
@@ -394,7 +322,7 @@ if is_admin:
                             "ID лога": None, # Прячем ID
                             "Дата": st.column_config.TextColumn(disabled=True, width="small"),
                             "Ребенок": st.column_config.TextColumn(disabled=True, width="small"),
-                            "Баллы": st.column_config.NumberColumn(step=1),
+                            "Баллы": st.column_config.NumberColumn(step=1, required=True),
                             "Причина": st.column_config.TextColumn()
                         },
                         num_rows="dynamic",
@@ -405,15 +333,21 @@ if is_admin:
                     # Кнопка сохранения изменений
                     if st.button("💾 Сохранить", type="primary", key="save_pts_btn"):
                         changes = st.session_state[editor_key_p]
+                        if changes.get("added_rows"):
+                            st.error("Добавляйте операции кнопками в карточке ребёнка. "
+                                     "Удалите новые строки из редактора перед сохранением.")
+                            st.stop()
                         
                         # 1. Обрабатываем УДАЛЕНИЯ
                         for row_idx in changes.get("deleted_rows", []):
-                            record_id = int(df_points_recent.loc[row_idx, "ID лога"])
+                            record_id = str(df_points_recent.loc[row_idx, "ID лога"])
                             supabase.table("points_log").delete().eq("id", record_id).execute()
                             
                         # 2. Обрабатываем ИЗМЕНЕНИЯ (Редактирование)
                         for row_idx, edits in changes.get("edited_rows", {}).items():
-                            record_id = int(df_points_recent.loc[row_idx, "ID лога"])
+                            if row_idx in changes.get("deleted_rows", []):
+                                continue
+                            record_id = str(df_points_recent.loc[row_idx, "ID лога"])
                             update_data = {}
                             
                             # Переводим русские названия колонок в английские для базы
@@ -426,7 +360,7 @@ if is_admin:
                                 supabase.table("points_log").update(update_data).eq("id", record_id).execute()
                                 
                         st.success("Изменения сохранены!")
-                        st.cache_data.clear()
+                        invalidate_data()
                         st.rerun()
                 else:
                     st.info("История баллов пуста.")
@@ -435,9 +369,9 @@ if is_admin:
             with tab_log_money:
                 if len(money_data) > 0:
                     df_money = pd.DataFrame(money_data)
-                    df_money_recent = df_money.tail(10).iloc[::-1].reset_index(drop=True)
+                    df_money_recent = df_money.reset_index(drop=True)
                     
-                    editor_key_m = "money_editor"
+                    editor_key_m = f"money_editor_{st.session_state.get('journal_revision', 0)}"
                     
                     # Выводим интерактивную таблицу (ужатую под мобильный)
                     st.data_editor(
@@ -446,7 +380,7 @@ if is_admin:
                             "ID транзакции": None,
                             "Дата": st.column_config.TextColumn(disabled=True, width="small"),
                             "Ребенок": st.column_config.TextColumn(disabled=True, width="small"),
-                            "Сумма": st.column_config.NumberColumn(step=1, width="small"),
+                            "Сумма": st.column_config.NumberColumn(step=1, required=True, width="small"),
                             "Описание": st.column_config.TextColumn(width="small")
                         },
                         num_rows="dynamic",
@@ -456,13 +390,19 @@ if is_admin:
                     
                     if st.button("💾 Сохранить изменения денег", type="primary", key="save_mon_btn"):
                         changes = st.session_state[editor_key_m]
+                        if changes.get("added_rows"):
+                            st.error("Добавляйте операции кнопками в карточке ребёнка. "
+                                     "Удалите новые строки из редактора перед сохранением.")
+                            st.stop()
                         
                         for row_idx in changes.get("deleted_rows", []):
-                            record_id = int(df_money_recent.loc[row_idx, "ID транзакции"])
+                            record_id = str(df_money_recent.loc[row_idx, "ID транзакции"])
                             supabase.table("money_log").delete().eq("id", record_id).execute()
                             
                         for row_idx, edits in changes.get("edited_rows", {}).items():
-                            record_id = int(df_money_recent.loc[row_idx, "ID транзакции"])
+                            if row_idx in changes.get("deleted_rows", []):
+                                continue
+                            record_id = str(df_money_recent.loc[row_idx, "ID транзакции"])
                             update_data = {}
                             
                             if "Сумма" in edits:
@@ -474,11 +414,12 @@ if is_admin:
                                 supabase.table("money_log").update(update_data).eq("id", record_id).execute()
                                 
                         st.success("Изменения сохранены!")
-                        st.cache_data.clear()
+                        invalidate_data()
                         st.rerun()
                 else:
                     st.info("История денег пуста.")
                     
         except Exception as e:
+            invalidate_data()
             st.warning(f"Ошибка при работе с журналом: {e}")
             
